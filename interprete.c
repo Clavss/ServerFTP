@@ -97,6 +97,8 @@ void interprete(int connfd) {
             FILE *fp;
             char path[PATH_MAX];
             char* concat = malloc(sizeof(char) *PATH_MAX*PATH_MAX);
+            concat[0] = '\0';
+
             int length_total = 0;
 
             fp = popen("ls *", "r");

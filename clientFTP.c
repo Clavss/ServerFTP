@@ -70,11 +70,11 @@ int main(int argc, char **argv)
 
     Rio_readinitb(&rio, clientfd);
 
-    char* cmd = malloc(sizeof(char) * COMMAND_MAX_LENGTH);
-    char* arg = malloc(sizeof(char) * COMMAND_MAX_LENGTH);
-    char* buff = malloc(TAILLE_PAQUET);
-
     while (Fgets(buf, MAXLINE, stdin) != NULL) {
+        char* cmd = malloc(sizeof(char) * COMMAND_MAX_LENGTH);
+        char* arg = malloc(sizeof(char) * COMMAND_MAX_LENGTH);
+        char* buff = malloc(TAILLE_PAQUET);
+        buff[0] = '\0';
         b_recv = 0;
 
         getCommand(buf, cmd, arg);
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
         Rio_readnb(&rio, &cmd_result, sizeof(int));
 
         if (cmd_result == -1) {
-            printf("\"%s\" n'est pas une commande\n", cmd);
+            printf("\"%s\" isn't a command\n", cmd);
         } else {
 
             /* GESTION DES COMMANDES */
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
                 // Message d'erreur si taille 0
                 if (taille == -1) {
-                    printf("le fichier %s n'existe pas\n", arg);
+                    printf("The file %s don't exist\n", arg);
                 } else {
                     // Recup x paquets
                     size_t n;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
                 Rio_readnb(&rio, &taille, sizeof(int));
                 Rio_readnb(&rio, buff, taille);
 
-                printf("Server working dir: %s\n", buff);
+                printf("Server working dir: %.*s\n", taille, buff);
             }
             
             /* LS */
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
                 Rio_readnb(&rio, &taille, sizeof(int));
                 Rio_readnb(&rio, buff, taille);
 
-                printf("%s\n", buff);
+                printf("%.*s\n", taille, buff);
             }
             
             /* CD */
@@ -184,15 +184,15 @@ int main(int argc, char **argv)
                 if (res[0] == '0') {
                     printf("Folder don't exist\n");
                 } else {
-                    printf("-> cd %s\n", arg);
+                    printf("-> moving to %s\n", arg);
                 }
             }
         }
 
+        my_free(cmd, arg, buff);
         printf("%sftp> " RESET, rand_color());
     }
 
-    my_free(cmd, arg, buff);
     Close(clientfd);
     exit(0);
 }
