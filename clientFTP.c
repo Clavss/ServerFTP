@@ -26,8 +26,30 @@ void my_free(char* cmd, char* arg, char* buff) {
     free(buff);
 }
 
+char* rand_color() {
+    int color = rand()%6 + 1;
+    switch (color) {
+        case 1:
+            return RED;
+        case 2:
+            return GREEN;
+        case 3:
+            return YELLOW;
+        case 4:
+            return BLUE;
+        case 5:
+            return MAGENTA;
+        case 6:
+            return CYAN;
+        default:
+            return RESET;
+    }
+}
+
 int main(int argc, char **argv)
 {
+    srand(time(NULL));
+
     int clientfd, port;
     char *host, buf[MAXLINE];
     rio_t rio;
@@ -44,7 +66,7 @@ int main(int argc, char **argv)
     clientfd = Open_clientfd(host, port);
 
     printf("Connected to %s\n", host);
-    printf("ftp> ");
+    printf("%sftp> " RESET, rand_color());
 
     Rio_readinitb(&rio, clientfd);
 
@@ -67,12 +89,28 @@ int main(int argc, char **argv)
         if (cmd_result == -1) {
             printf("\"%s\" n'est pas une commande\n", cmd);
         } else {
+
             /* GESTION DES COMMANDES */
+            /* GET */
             if (!strcmp(cmd, "get")) {
                 // Structures de donnée
                 int f = 0;
                 b_recv = 0;
                 double start_time = time(NULL);
+
+                // Envoie de la taille du fichier chez le client
+                int f_length = file_length(arg);
+                Rio_writen(clientfd, &f_length, sizeof(int));
+
+                int same_length;
+                Rio_readnb(&rio, &same_length, sizeof(int));
+
+                if (f_length != 0 || !same_length) {
+                    f = Open(arg, O_WRONLY | O_CREAT, 00400 | 00200);
+                    if (!same_length) {
+                        lseek(f, 0, SEEK_END);
+                    }
+                }
 
                 // Recevoir taille du premier paquet
                 int taille = -1;
@@ -85,11 +123,6 @@ int main(int argc, char **argv)
                     // Recup x paquets
                     size_t n;
                     b_recv += taille;
-                    char* arg2 = malloc(strlen(arg) + 1);
-                    strcpy(arg2, "_");
-                    strcat(arg2, arg);
-
-                    f = Open(arg2, O_WRONLY | O_CREAT, 00400 | 00200);
 
                     // Recup premier paquet
                     Rio_readnb(&rio, buff, taille);
@@ -110,25 +143,39 @@ int main(int argc, char **argv)
                     Close(f);
                     message(b_recv, start_time);
                 }
-            } else if (!strcmp(cmd, "bye")) {
+            }
+            
+            /* BYE */
+            else if (!strcmp(cmd, "bye")) {
                 printf("Disconnected to %s\n", host);
 
                 my_free(cmd, arg, buff);
                 Close(clientfd);
                 exit(0);
-            } else if (!strcmp(cmd, "pwd")) {
+            }
+            
+            /* PWD */
+            else if (!strcmp(cmd, "pwd")) {
                 // Lire le chemin actuel du server
                 int taille;
                 Rio_readnb(&rio, &taille, sizeof(int));
                 Rio_readnb(&rio, buff, taille);
 
                 printf("Server working dir: %s\n", buff);
-            } else if (!strcmp(cmd, "ls")) {
+            }
+            
+            /* LS */
+            else if (!strcmp(cmd, "ls")) {
                 // Lire le contenu du répertoire courant
                 int taille;
                 Rio_readnb(&rio, &taille, sizeof(int));
                 Rio_readnb(&rio, buff, taille);
-            } else if (!strcmp(cmd, "cd")) {
+
+                printf("%s\n", buff);
+            }
+            
+            /* CD */
+            else if (!strcmp(cmd, "cd")) {
                 
                 int taille;
                 char res[1];
@@ -142,7 +189,7 @@ int main(int argc, char **argv)
             }
         }
 
-        printf("ftp> ");
+        printf("%sftp> " RESET, rand_color());
     }
 
     my_free(cmd, arg, buff);

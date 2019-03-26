@@ -29,9 +29,20 @@ void interprete(int connfd) {
             int f;
             int compte = 0;
 
+            // Récupère la taille du fichier
+            int f_length_client;
+            Rio_readnb(&rio, &f_length_client, sizeof(int));
+
+            int f_length_server = file_length(arg);
+            int same_length = (f_length_client == f_length_server);
+            Rio_writen(connfd, &same_length, sizeof(int));
+
             // Envoie des paquets successif
             if ((f = open(arg, O_RDONLY, 0)) > 0) {
                 char b[TAILLE_PAQUET];
+                if (!same_length) {
+                    lseek(f, f_length_client, SEEK_CUR);
+                }
 
                 while ((compte = Read(f, b, TAILLE_PAQUET)) > 0) {
                     envoiePaquet(connfd, compte, b);
@@ -41,7 +52,6 @@ void interprete(int connfd) {
             // Envoyer -1 au client, stop ou fichier inexistant
             compte = -1;
             Rio_writen(connfd, &compte, sizeof(int));
-
         }
 
         /* PWD */
@@ -83,6 +93,25 @@ void interprete(int connfd) {
         else if (!strcmp(cmd, "ls")) {
             cmd_result = 5;
             Rio_writen(connfd, &cmd_result, sizeof(int));
+
+            FILE *fp;
+            char path[PATH_MAX];
+            char* concat = malloc(sizeof(char) *PATH_MAX*PATH_MAX);
+            int length_total = 0;
+
+            fp = popen("ls *", "r");
+            if (fp == NULL) {
+                printf("error\n");
+            }
+            while (fgets(path, PATH_MAX, fp) != NULL) {
+                strcat(concat, path);
+                length_total += strlen(path);
+            }
+            pclose(fp);
+
+            // Envoie le résultat de ls
+            envoiePaquet(connfd, length_total, concat);
+            free(concat);
         }
         
         /* AUTRES */
@@ -131,4 +160,13 @@ int envoiePaquet(int connfd, int compte, char* buf) {
     // Envoie du paquets
     Rio_writen(connfd, buf, compte);
     return 0;
+}
+
+int file_length(char *filename) {
+    struct stat buffer;   
+    if (stat(filename, &buffer) == 0) {
+        return buffer.st_size;
+    } else {
+        return 0;
+    }
 }
