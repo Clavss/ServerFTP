@@ -5,6 +5,6 @@
 #define TAILLE_PAQUET 65536
 
 void getCommand(char buf[COMMAND_MAX_LENGTH], char* cmd, char* arg);
-int envoiePaquet(int connfd,int compte,char* buf);
+int envoiePaquet(int connfd, int compte, char* buf);
 
 #endif
