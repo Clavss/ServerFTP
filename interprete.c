@@ -22,8 +22,7 @@ void interprete(int connfd) {
         /* GESTION DES COMMANDES */
         /* GET */
         if (!strcmp(cmd, "get")) {
-            cmd_result = 1;
-            Rio_writen(connfd, &cmd_result, sizeof(int));
+            sendCommandResult(connfd, 1);
 
             // Declaration des structures de données
             int f;
@@ -45,7 +44,7 @@ void interprete(int connfd) {
                 }
 
                 while ((compte = Read(f, b, TAILLE_PAQUET)) > 0) {
-                    envoiePaquet(connfd, compte, b);
+                    sendPacket(connfd, compte, b);
                 }
                 Close(f);
             }
@@ -56,29 +55,26 @@ void interprete(int connfd) {
 
         /* PWD */
         else if (!strcmp(cmd, "pwd")) {
-            cmd_result = 2;
-            Rio_writen(connfd, &cmd_result, sizeof(int));
+            sendCommandResult(connfd, 2);
 
             char cwd[1024];
             // Récupère le chemin actuel
             getcwd(cwd, sizeof(cwd));
             // Envoie du chemin
-            envoiePaquet(connfd, sizeof(cwd), cwd);
+            sendPacket(connfd, sizeof(cwd), cwd);
 
         }
 
         /* BYE */
         else if (!strcmp(cmd, "bye")) {
-            cmd_result = 3;
-            Rio_writen(connfd, &cmd_result, sizeof(int));
+            sendCommandResult(connfd, 3);
 
-            printf("a client has disconnected\n");
+            printf("a client has been disconnected\n");
         }
         
         /* CD */
         else if (!strcmp(cmd, "cd")) {
-            cmd_result = 4;
-            Rio_writen(connfd, &cmd_result, sizeof(int));
+            sendCommandResult(connfd, 4);
             
             char res = '1';
             if (chdir(arg) != 0) {
@@ -86,13 +82,12 @@ void interprete(int connfd) {
             } else {
                 printf("-> cd %s\n", arg);
             }
-            envoiePaquet(connfd, sizeof(char), &res);
+            sendPacket(connfd, sizeof(char), &res);
         }
         
         /* LS */
         else if (!strcmp(cmd, "ls")) {
-            cmd_result = 5;
-            Rio_writen(connfd, &cmd_result, sizeof(int));
+            sendCommandResult(connfd, 5);
 
             FILE *fp;
             char path[PATH_MAX];
@@ -112,20 +107,80 @@ void interprete(int connfd) {
             pclose(fp);
 
             // Envoie le résultat de ls
-            envoiePaquet(connfd, length_total, concat);
+            sendPacket(connfd, length_total, concat);
             free(concat);
+        }
+
+        /* MKDIR */
+        else if (!strcmp(cmd, "mkdir")) {
+            sendCommandResult(connfd, 6);
+            
+            char res = my_exec(cmd, arg);
+
+            sendPacket(connfd, sizeof(char), &res);
+        }
+
+        /* RM */
+        else if (!strcmp(cmd, "rm")) {
+            sendCommandResult(connfd, 7);
+            
+            char res = my_exec(cmd, arg);
+
+            sendPacket(connfd, sizeof(char), &res);
         }
         
         /* AUTRES */
         else {
-            printf("unknow command received: \"%s\"\n", cmd);
-            cmd_result = -1;
-            Rio_writen(connfd, &cmd_result, sizeof(int));
+            sendCommandResult(connfd, -1);
+            printf("unknow command received: \"%s\"\n", cmd);           
         }
 
         free(cmd);
         free(arg);
     }
+}
+
+char my_exec(char *cmd, char *arg) {
+    char res = '9';
+
+    if (Fork() == 0) {
+        if (strlen(arg) > 3 && arg[0] == '-' && arg[1] == 'r' && arg[2] == ' ') {
+            char *arg1 = malloc(sizeof(char) * 2);
+            char *arg2 = malloc(sizeof(char) * (strlen(arg)-3));
+            getCommand(arg, arg1, arg2);
+
+            execlp(cmd, cmd, arg1, arg2, NULL);
+            free(arg1);
+            free(arg2);
+        } else if (strlen(arg) > 0 && arg[0] != '-') {
+            execlp(cmd, cmd, arg, NULL);
+        } else {
+            exit(1);
+        }
+    } else {
+        int status;
+        wait(&status);
+
+        if (WIFEXITED(status)) {
+            WEXITSTATUS(status)
+                ? (res = '0')
+                : (res = '1');
+        }
+    }
+
+    return res;
+}
+
+void sendCommandResult(int connfd, int n) {
+    int cmd_result = n;
+    Rio_writen(connfd, &cmd_result, sizeof(int));
+}
+
+int recvPacket(rio_t *rio, char* buff) {
+    int taille;
+    Rio_readnb(rio, &taille, sizeof(int));
+    Rio_readnb(rio, buff, taille);
+    return taille;
 }
 
 void getCommand(char buf[COMMAND_MAX_LENGTH], char* cmd, char* arg) {
@@ -153,7 +208,7 @@ void getCommand(char buf[COMMAND_MAX_LENGTH], char* cmd, char* arg) {
     }
 }
 
-int envoiePaquet(int connfd, int compte, char* buf) {
+int sendPacket(int connfd, int compte, char* buf) {
     //printf("ENVOIE: [%s]\n", buf);
 
     // Envoie de la taille du paquet

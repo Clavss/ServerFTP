@@ -157,34 +157,69 @@ int main(int argc, char **argv)
             /* PWD */
             else if (!strcmp(cmd, "pwd")) {
                 // Lire le chemin actuel du server
-                int taille;
-                Rio_readnb(&rio, &taille, sizeof(int));
-                Rio_readnb(&rio, buff, taille);
-
+                int taille = recvPacket(&rio, buff);
                 printf("Server working dir: %.*s\n", taille, buff);
             }
             
             /* LS */
             else if (!strcmp(cmd, "ls")) {
                 // Lire le contenu du répertoire courant
-                int taille;
-                Rio_readnb(&rio, &taille, sizeof(int));
-                Rio_readnb(&rio, buff, taille);
-
+                int taille = recvPacket(&rio, buff);
                 printf("%.*s\n", taille, buff);
             }
             
             /* CD */
             else if (!strcmp(cmd, "cd")) {
-                
-                int taille;
                 char res[1];
-                Rio_readnb(&rio, &taille, sizeof(int));
-                Rio_readnb(&rio, res, taille);
+                recvPacket(&rio, res);
                 if (res[0] == '0') {
                     printf("Folder don't exist\n");
                 } else {
                     printf("-> moving to %s\n", arg);
+                }
+            }
+
+            /* MKDIR */
+            else if (!strcmp(cmd, "mkdir")) {
+                char res[1];
+                recvPacket(&rio, res);
+                if (res[0] == '0') {
+                    printf("Error while creating folder \"%s\"\n", arg);
+                } else if (res[0] == '1') {
+                    printf("-> folder \"%s\" created\n", arg);
+                } else {
+                    printf("%s\n", res);
+                }
+            }
+
+            /* RM */
+            else if (!strcmp(cmd, "rm")) {
+                char res[1];
+                recvPacket(&rio, res);
+
+                if (arg[0] == '-') {
+                    char *arg1 = malloc(sizeof(char) * 2);
+                    char *arg2 = malloc(sizeof(char) * (strlen(arg)-3));
+                    getCommand(arg, arg1, arg2);
+
+                    if (res[0] == '0') {
+                        printf("Error while removing folder \"%s\"\n", arg2);
+                    } else if (res[0] == '1') {
+                        printf("-> folder \"%s\" removed\n", arg2);
+                    } else {
+                        printf("Error: %s\n", res);
+                    }
+
+                    free(arg1);
+                    free(arg2);
+                } else {
+                    if (res[0] == '0') {
+                        printf("Error while removing file \"%s\"\n", arg);
+                    } else if (res[0] == '1') {
+                        printf("-> file \"%s\" removed\n", arg);
+                    } else {
+                        printf("Error: %s\n", res);
+                    }
                 }
             }
         }

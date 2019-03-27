@@ -14,7 +14,10 @@
 #define CYAN  "\x1B[36m"
 
 void getCommand(char buf[COMMAND_MAX_LENGTH], char* cmd, char* arg);
-int envoiePaquet(int connfd, int compte, char* buf);
+int sendPacket(int connfd, int compte, char* buf);
 int file_length(char *filename);
+void sendCommandResult(int connfd, int n);
+int recvPacket(rio_t *rio, char* buff);
+char my_exec(char *cmd, char *arg);
 
 #endif
