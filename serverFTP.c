@@ -10,13 +10,14 @@
 int parent_pid;
 
 void interprete(int connfd);
+void repartiteur(int connfd, char* ip);
 
 void handler(int sig) {
 	kill(-parent_pid, sig);
     exit(0);
 }
 
-void init_pool(int port, int listenfd) {
+void init_pool(int port, int listenfd, int is_master, char** ips, int nb_ip) {
     int  connfd;
     socklen_t clientlen;
     struct sockaddr_in clientaddr;
@@ -25,6 +26,8 @@ void init_pool(int port, int listenfd) {
 
     for (int i = 0; i < NMAX; i++) {
         if (Fork() == 0) { /* FILS */
+            int current_ip = i;
+
             while (1) {
                 clientlen = (socklen_t)sizeof(clientaddr);
 
@@ -41,7 +44,14 @@ void init_pool(int port, int listenfd) {
                 printf("client connected to %s (%s) (pid:%d)\n", client_hostname,
                        client_ip_string, getpid());
 
-                interprete(connfd);
+                if (is_master) {
+                    // Incrementer l'ip dans le processus père
+                    current_ip = (current_ip+1) %nb_ip;
+                    repartiteur(connfd, ips[current_ip]);
+                } else {
+                    interprete(connfd);
+                }
+
                 Close(connfd);
             }
         }
@@ -54,16 +64,28 @@ void init_pool(int port, int listenfd) {
  */
 int main(int argc, char **argv)
 {
-    if (argc != 1) {
-        fprintf(stderr, "usage: %s\n", argv[0]);
+    //
+    if (argc < 2) {
+        fprintf(stderr, "usage: %s <slave:0>\n", argv[0]);
+        fprintf(stderr, "or\n");
+        fprintf(stderr, "usage: %s <master:1> <ip_slave1> <ip_slave2> ...\n", argv[0]);
         exit(0);
     }
     parent_pid = getpid();
 
+    int is_master = atoi(argv[1]);
     int port = 2121;
     int listenfd = Open_listenfd(port);
 
-    init_pool(port, listenfd);
+    char** ips = NULL;
+    if (is_master) {
+        ips = malloc(sizeof(char*) * (argc-2));
+        for (int i = 0; i < argc-2; i++) {
+            ips[i] = argv[i+2];
+        }
+    }
+
+    init_pool(port, listenfd, is_master, ips, argc-2);
     Signal(SIGINT, handler);
 
     while(1);

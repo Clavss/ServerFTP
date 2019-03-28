@@ -63,7 +63,17 @@ int main(int argc, char **argv)
     host = argv[1];
     port = 2121;
 
+    /* PARTIE 4, commenter pour se connecter directement à l'esclave
     clientfd = Open_clientfd(host, port);
+    //recup nouvelle host
+    Rio_readinitb(&rio, clientfd);
+    recvPacket(&rio, host);
+    Close(clientfd);
+    */
+
+    // Se connecte au server esclave attribué
+    clientfd = Open_clientfd(host, port);
+
 
     printf("Connected to %s\n", host);
     printf("%sftp> " RESET, rand_color());
@@ -144,7 +154,7 @@ int main(int argc, char **argv)
                     message(b_recv, start_time);
                 }
             }
-            
+
             /* BYE */
             else if (!strcmp(cmd, "bye")) {
                 printf("Disconnected to %s\n", host);
@@ -153,21 +163,21 @@ int main(int argc, char **argv)
                 Close(clientfd);
                 exit(0);
             }
-            
+
             /* PWD */
             else if (!strcmp(cmd, "pwd")) {
                 // Lire le chemin actuel du server
                 int taille = recvPacket(&rio, buff);
                 printf("Server working dir: %.*s\n", taille, buff);
             }
-            
+
             /* LS */
             else if (!strcmp(cmd, "ls")) {
                 // Lire le contenu du répertoire courant
                 int taille = recvPacket(&rio, buff);
                 printf("%.*s\n", taille, buff);
             }
-            
+
             /* CD */
             else if (!strcmp(cmd, "cd")) {
                 char res[1];

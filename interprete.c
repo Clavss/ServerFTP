@@ -3,6 +3,7 @@
 
 #define TAILLE_MAX 1000000
 
+// SLAVE
 void interprete(int connfd) {
     size_t n;
     char buf[MAXLINE];
@@ -10,6 +11,7 @@ void interprete(int connfd) {
     int cmd_result;
 
     Rio_readinitb(&rio, connfd);
+
     while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
         //printf("server received %u bytes: [%s]", (unsigned int)n, buf);
 
@@ -71,11 +73,11 @@ void interprete(int connfd) {
 
             printf("a client has been disconnected\n");
         }
-        
+
         /* CD */
         else if (!strcmp(cmd, "cd")) {
             sendCommandResult(connfd, 4);
-            
+
             char res = '1';
             if (chdir(arg) != 0) {
                 res = '0';
@@ -84,7 +86,7 @@ void interprete(int connfd) {
             }
             sendPacket(connfd, sizeof(char), &res);
         }
-        
+
         /* LS */
         else if (!strcmp(cmd, "ls")) {
             sendCommandResult(connfd, 5);
@@ -114,7 +116,7 @@ void interprete(int connfd) {
         /* MKDIR */
         else if (!strcmp(cmd, "mkdir")) {
             sendCommandResult(connfd, 6);
-            
+
             char res = my_exec(cmd, arg);
 
             sendPacket(connfd, sizeof(char), &res);
@@ -123,16 +125,16 @@ void interprete(int connfd) {
         /* RM */
         else if (!strcmp(cmd, "rm")) {
             sendCommandResult(connfd, 7);
-            
+
             char res = my_exec(cmd, arg);
 
             sendPacket(connfd, sizeof(char), &res);
         }
-        
+
         /* AUTRES */
         else {
             sendCommandResult(connfd, -1);
-            printf("unknow command received: \"%s\"\n", cmd);           
+            printf("unknow command received: \"%s\"\n", cmd);
         }
 
         free(cmd);
@@ -220,7 +222,7 @@ int sendPacket(int connfd, int compte, char* buf) {
 }
 
 int file_length(char *filename) {
-    struct stat buffer;   
+    struct stat buffer;
     if (stat(filename, &buffer) == 0) {
         return buffer.st_size;
     } else {
